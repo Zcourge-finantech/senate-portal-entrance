@@ -253,13 +253,51 @@
         }
 
         .top-bar {
-            padding: 1.5rem 3rem;
+            padding: 1rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: var(--glass-border);
             background: rgba(15, 23, 42, 0.85);
             backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .top-bar {
+                padding: 0.75rem 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .content {
+                padding: 1rem;
+            }
+
+            .top-bar-actions {
+                display: none;
+            }
+
+            /* Hide zoom/search on small mobile if needed */
         }
 
         .content {
@@ -351,6 +389,13 @@
             color: var(--success);
             background: rgba(16, 185, 129, 0.1);
             border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .bill-status.law {
+            color: #fff;
+            background: linear-gradient(135deg, #b45309, #d97706);
+            border: none;
+            box-shadow: 0 0 10px rgba(217, 119, 6, 0.4);
         }
 
         .login-wrap {
@@ -705,8 +750,17 @@
                 if (el) {
                     const status = Cloud.connected ? `Online: ${Cloud.channel.split('/')[1]}` : 'Connecting...';
                     const cls = Cloud.connected ? 'active' : '';
-                    el.innerHTML = `<div class="top-bar"><h2 style="text-transform:capitalize; color:white;">${this.view}</h2>
-                     <div class="online-badge ${cls}"><div class="status-dot ${Cloud.connected ? 'connected' : ''}"></div><span style="color:${Cloud.connected ? 'var(--text-main)' : 'var(--text-muted)'}">${status}</span></div></div>`;
+                    el.innerHTML = `
+                    <div class="top-bar">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <button class="mobile-menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('show')">☰</button>
+                            <h2 style="text-transform:capitalize; color:white; font-size:1.5rem;">${this.view}</h2>
+                        </div>
+                        <div class="online-badge ${cls}">
+                            <div class="status-dot ${Cloud.connected ? 'connected' : ''}"></div>
+                            <span style="color:${Cloud.connected ? 'var(--text-main)' : 'var(--text-muted)'}">${status}</span>
+                        </div>
+                    </div>`;
                 }
             },
             renderLogin() {
@@ -928,8 +982,10 @@
             },
             senatorProfile(id) {
                 const s = db.get('users', id);
-                const filed = db.getAll('bills').filter(b => b.authorId === id || (b.coAuthors || []).includes(id));
+                const bills = db.getAll('bills');
+                const filed = bills.filter(b => b.authorId === id || (b.coAuthors || []).includes(id));
                 const passed = filed.filter(b => b.status === 'passed');
+                const laws = filed.filter(b => b.status === 'law');
 
                 this.show(`
                 <div style="text-align:center;">
@@ -943,15 +999,19 @@
                     <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">BIOGRAPHY</h4>
                     <p style="white-space:pre-wrap; line-height:1.6; margin-bottom:1.5rem; font-size:0.95rem;">${s.bio || 'No biography available.'}</p>
                     
-                    <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">BILLS SUMMARY</h4>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
-                        <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; text-align:center;">
-                            <div style="font-size:1.5rem; font-weight:700; color:var(--accent);">${filed.length}</div>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">FILED/CO-AUTHORED</div>
+                    <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">LEGISLATIVE RECORD</h4>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin-bottom:1.5rem;">
+                        <div style="background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.25rem; font-weight:700; color:var(--accent);">${filed.length}</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted);">FILED</div>
                         </div>
-                        <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; text-align:center;">
-                            <div style="font-size:1.5rem; font-weight:700; color:var(--success);">${passed.length}</div>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">BILLS PASSED</div>
+                        <div style="background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.25rem; font-weight:700; color:var(--success);">${passed.length}</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted);">PASSED</div>
+                        </div>
+                        <div style="background:linear-gradient(135deg, #b45309, #d97706); padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.25rem; font-weight:700; color:white;">${laws.length}</div>
+                            <div style="font-size:0.65rem; color:rgba(255,255,255,0.8);">ENACTED</div>
                         </div>
                     </div>
                     
@@ -982,7 +1042,7 @@
                 if (id) db.update('committees', id, d); else db.add('committees', d); this.close(); App.render();
             },
             bill(id) {
-                const b = id ? db.get('bills', id) : { title: '', desc: '', link: '', coAuthors: [], sponsorId: '', coSponsors: [], primaryCommId: '', secondaryCommId: '' };
+                const b = id ? db.get('bills', id) : { title: '', desc: '', link: '', status: 'committee', createdAt: new Date().toISOString(), coAuthors: [], sponsorId: '', coSponsors: [], primaryCommId: '', secondaryCommId: '' };
                 const sens = db.getAll('users').filter(u => u.role === 'senator');
                 const coms = db.getAll('committees');
                 const senOpts = sens.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -995,6 +1055,20 @@
                 <div class="scroll-box" style="max-height:70vh; padding-right:0.5rem; display:grid; gap:1rem; margin-top:1rem;">
                     <div><label>Title</label><input id="b-t" class="input" placeholder="Title" value="${b.title}"></div>
                     <div><label>Description</label><textarea id="b-d" class="input" rows="4" placeholder="Desc">${b.desc}</textarea></div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div>
+                            <label>Status</label>
+                            <select id="b-status" class="select">
+                                <option value="committee" ${b.status === 'committee' ? 'selected' : ''}>Committee Hearing</option>
+                                <option value="plenary" ${b.status === 'plenary' ? 'selected' : ''}>Plenary Session</option>
+                                <option value="passed" ${b.status === 'passed' ? 'selected' : ''}>Passed 3rd Reading</option>
+                                <option value="law" ${b.status === 'law' ? 'selected' : ''}>PASSED INTO LAW</option>
+                            </select>
+                        </div>
+                        <div><label>Date Filed</label><input id="b-date" type="datetime-local" class="input" value="${b.createdAt.substring(0, 16)}"></div>
+                    </div>
+
                     <div><label>Document Link</label><input id="b-l" class="input" placeholder="Link" value="${b.link || ''}"></div>
                     
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
@@ -1024,20 +1098,17 @@
                 }, 10);
             },
             saveBill(id) {
-                const d = {
-                    title: val('b-t'),
-                    desc: val('b-d'),
-                    link: val('b-l'),
-                    authorId: parseInt(val('b-author')) || App.user.id,
-                    sponsorId: parseInt(val('b-sponsor')) || null,
+                const b = {
+                    title: val('b-t'), desc: val('b-d'), status: val('b-status'), stage: '',
+                    link: val('b-l'), authorId: parseInt(val('b-author')), sponsorId: parseInt(val('b-sponsor')),
                     coAuthors: Array.from(document.querySelectorAll('.co-author-check:checked')).map(x => parseInt(x.value)),
                     coSponsors: Array.from(document.querySelectorAll('.co-sponsor-check:checked')).map(x => parseInt(x.value)),
-                    primaryCommId: parseInt(val('b-pcomm')) || null,
-                    secondaryCommId: parseInt(val('b-scomm')) || null,
-                    createdAt: id ? db.get('bills', id).createdAt : new Date().toISOString()
+                    primaryCommId: parseInt(val('b-pcomm')), secondaryCommId: parseInt(val('b-scomm')),
+                    createdAt: new Date(val('b-date')).toISOString()
                 };
-                if (id) db.update('bills', id, d); else db.add('bills', d);
-                this.close(); App.render();
+                if (!b.title || !b.authorId) return alert("Title and Author required.");
+                id ? db.update('bills', id, b) : db.add('bills', b);
+                this.close();
             }
         };
         const val = id => document.getElementById(id).value;
