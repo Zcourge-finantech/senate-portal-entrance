@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senate Management System | Online Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+    <!-- Paho MQTT Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
+        type="text/javascript"></script>
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <style>
+        :root {
+            /* V7 Theme */
+            --bg-app: #0f172a;
+            --bg-sidebar: #020617;
+            --bg-card: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent: #fbbf24;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --danger: #ef4444;
+            --glass: rgba(30, 41, 59, 0.7);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+            --radius: 16px;
+            --app-zoom: 1;
+        }
+
+        * {
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        html {
+            font-size: calc(16px * var(--app-zoom));
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-app);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15), transparent 50%), radial-gradient(at 100% 100%, rgba(251, 191, 36, 0.1), transparent 50%);
+        }
+
+        #app {
+            height: 100%;
+            width: 100%;
+            display: block;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            font-family: 'Playfair Display', serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 10px;
+            border: 3px solid var(--bg-app);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-hover);
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        /* Classes */
+        .scroll-box {
+            overflow-y: scroll;
+            padding-right: 1.5rem;
+            flex: 1;
+            min-height: 0;
+            /* Crucial for flex scroll */
+            width: 100%;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .btn-success {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #86efac;
+        }
+
+        .input,
+        .select {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+        }
+
+        .input:focus {
+            border-color: var(--primary);
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: var(--glass-border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .cropper-container-wrap {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .wrapper {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--bg-sidebar);
+            border-right: var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1.5rem;
+            z-index: 10;
+            transition: transform 0.3s;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main {
+                width: 100%;
+            }
+
+            .content {
+                padding: 1.5rem;
+            }
+        }
+
+        .nav-item {
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transform: translateX(5px);
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            padding: 1.5rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: var(--glass-border);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+        }
+
+        .content {
+            flex: 1;
+            overflow: hidden;
+            padding: 2.5rem 3rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            /* Crucial for flex scroll */
+            position: relative;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        .senator-card {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .senator-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+        }
+
+        .senator-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--accent);
+            background: #333;
+            margin: 0 auto 1.2rem;
+        }
+
+        .party-badge {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: var(--bg-app);
+            color: var(--accent);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            border: 1px solid var(--border);
+        }
+
+        .role-pill {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        .bill-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .bill-status.plenary {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .bill-status.passed {
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .login-wrap {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 440px;
+            padding: 3rem;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            width: 90%;
+            max-width: 500px;
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.open .modal-content {
+            transform: translateY(0);
+        }
+
+        .online-badge {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+
+        .online-badge.active {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app"></div>
+    <div id="modal-layer" class="modal-overlay"></div>
+
+    <script>
+        /* --- CONFIGURATION --- */
+        const DB_KEY = 'sms_v8_data';
+        // Updated to use Secure WebSockets (WSS) and a reliable public broker
+        const MQTT_BROKER = "broker.hivemq.com";
+        const MQTT_PORT = 8884; // Secure WebSocket Port
+        const MQTT_PATH = "/mqtt";
+        let CLIENT_ID = "sms_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+
+        /* --- CLOUD SYNC ENGINE (FIXED) --- */
+        const Cloud = {
+            client: null,
+            channel: null,
+            connected: false,
+            reconnectTimer: null,
+
+            connect(chan) {
+                if (!chan || (this.connected && this.channel === 'sms_v8_live/' + chan)) return;
+
+                // Close existing if trying to switch channels
+                if (this.client) {
+                    try { this.client.disconnect(); } catch (e) { }
+                }
+
+                this.channel = 'sms_v8_live/' + chan;
+                console.log("Connecting to:", this.channel);
+
+                // Initialize Paho Client
+                this.client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, MQTT_PATH, CLIENT_ID);
+
+                // Handlers
+                this.client.onConnectionLost = (responseObject) => {
+                    console.log("Connection Lost:", responseObject.errorMessage);
+                    this.connected = false;
+                    App.renderHeader();
+                    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = setTimeout(() => this.connect(chan), 10000);
+                };
+
+                this.client.onMessageArrived = (msg) => {
+                    try {
+                        const packet = JSON.parse(msg.payloadString);
+                        if (packet.sender !== CLIENT_ID) {
+                            console.log("Valid update received from:", packet.sender);
+                            if (db.merge(packet.data)) {
+                                App.renderDebounced();
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Sync Error:", e);
+                    }
+                };
+
+                // Connect Options
+                const options = {
+                    useSSL: true,
+                    timeout: 3,
+                    onSuccess: () => {
+                        console.log("Connected to Cloud.");
+                        this.connected = true;
+                        this.client.subscribe(this.channel);
+                        App.renderHeader();
+                        const loginStatus = document.getElementById('login-cloud-status');
+                        if (loginStatus) {
+                            loginStatus.innerHTML = `🟢 Channel Connected: ${chan}`;
+                            loginStatus.style.color = 'var(--success)';
+                        }
+                    },
+                    onFailure: (ctx) => {
+                        console.error("Connection Failed:", ctx.errorMessage);
+                        this.connected = false;
+                        App.renderHeader();
+                        const loginStatus = document.getElementById('login-cloud-status');
+                        if (loginStatus) {
+                            loginStatus.innerHTML = `🔴 Connection Failed. Retrying...`;
+                            loginStatus.style.color = 'var(--danger)';
+                        }
+                        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+                        this.reconnectTimer = setTimeout(() => this.connect(chan), 10000);
+                    }
+                };
+
+                this.client.connect(options);
+            },
+
+            broadcast(data) {
+                if (this.connected && this.client) {
+                    const payload = JSON.stringify({ sender: CLIENT_ID, timestamp: Date.now(), data: data });
+                    const msg = new Paho.MQTT.Message(payload);
+                    msg.destinationName = this.channel;
+                    msg.qos = 0;
+                    msg.retained = true;
+                    this.client.send(msg);
+                }
+            }
+        };
+
+        /* --- DATABASE (With v7 Fields) --- */
+        const SEED = {
+            users: [
+                { id: 1, role: 'admin', username: 'admin', password: '123', name: 'System Admin', email: '', img: '', party: 'N/A', bloc: '', pos: '' },
+                { id: 2, role: 'senator', username: 'smith', password: '123', name: 'Sen. John Smith', email: 'smith@gov.ph', img: 'https://randomuser.me/api/portraits/men/32.jpg', party: 'Lakas', bloc: 'Majority Bloc', pos: 'Senate President' },
+                { id: 3, role: 'senator', username: 'doe', password: '123', name: 'Sen. Jane Doe', email: 'doe@gov.ph', img: 'https://randomuser.me/api/portraits/women/44.jpg', party: 'Nacionalista', bloc: 'Minority Bloc', pos: 'Minority Leader' }
+            ],
+            bills: [{ id: 101, title: 'S.B. 101: Renewable Energy Act', desc: 'Mandates 50% renewable energy transition by 2030.', authorId: 2, status: 'committee', stage: 'Committee Hearing', link: '', createdAt: new Date().toISOString() }],
+            committees: [{ id: 1, name: 'Rules & Privileges', members: [2], chairId: 2, viceId: null, desc: 'Jurisdiction over senate rules.' }],
+            rules: "SECTION 1. SESSIONS.\nThe Senate shall meet every Monday at 3:00 PM...",
+            votes: []
+        };
+
+        class Database {
+            constructor() {
+                // DATA MIGRATION: Check for older versions if current is empty
+                let s = localStorage.getItem(DB_KEY);
+                if (!s) {
+                    const oldKeys = ['sms_v7_data', 'sms_v6_data', 'sms_v5_data', 'sms_v3_data', 'senate_system_v2'];
+                    for (const key of oldKeys) {
+                        const oldData = localStorage.getItem(key);
+                        if (oldData && oldData.length > 50) { // Basic length check
+                            console.log("Migrating data from:", key);
+                            s = oldData;
+                            break;
+                        }
+                    }
+                }
+
+                this.data = s ? JSON.parse(s) : SEED;
+
+                // Ensure robust structure
+                if (!this.data.users) this.data.users = SEED.users;
+                if (!this.data.committees) this.data.committees = SEED.committees;
+
+                // v7/v8 Migrations (ensure fields exist)
+                this.data.users.forEach(u => {
+                    if (!u.bloc) u.bloc = '';
+                    if (!u.pos) u.pos = '';
+                    if (u.bio === undefined) u.bio = '';
+                });
+                this.data.committees.forEach(c => {
+                    if (c.chairId === undefined) c.chairId = c.members[0] || null;
+                    if (c.viceId === undefined) c.viceId = null;
+                });
+
+                this.save(false);
+            }
+            save(sync = true) {
+                localStorage.setItem(DB_KEY, JSON.stringify(this.data));
+                if (sync) Cloud.broadcast(this.data);
+            }
+            merge(d) {
+                // Check if data is actually different to prevent infinite render loops
+                const current = JSON.stringify(this.data);
+                const incoming = JSON.stringify(d);
+                if (current === incoming) return false;
+
+                this.data = d;
+                localStorage.setItem(DB_KEY, JSON.stringify(this.data));
+                return true;
+            }
+            getAll(k) { return this.data[k]; }
+            get(k, id) { return this.data[k].find(x => x.id === id); }
+            add(k, item) { this.data[k].push({ ...item, id: Date.now() }); this.save(); }
+            update(k, id, up) { const idx = this.data[k].findIndex(x => x.id === id); if (idx !== -1) { this.data[k][idx] = { ...this.data[k][idx], ...up }; this.save(); } }
+            delete(k, id) { this.data[k] = this.data[k].filter(x => x.id !== id); this.save(); }
+            vote(bid, uid, type) { this.data.votes = this.data.votes.filter(v => !(v.billId === bid && v.userId === uid)); this.data.votes.push({ billId: bid, userId: uid, type }); this.save(); }
+        }
+        const db = new Database();
+
+        /* --- UI LOGIC --- */
+        const App = {
+            view: 'login', user: null, zoom: localStorage.getItem('sms_zoom') || 1,
+            init() {
+                this.root = document.getElementById('app');
+                this.setZoom(this.zoom);
+                this.render();
+            },
+            setZoom(v) {
+                this.zoom = v;
+                document.documentElement.style.setProperty('--app-zoom', v);
+                localStorage.setItem('sms_zoom', v);
+            },
+            login(u, p, ch) {
+                if (!ch) return alert("Please enter a Session Channel name first.");
+
+                // If not connected yet, connect and wait briefly for sync
+                if (!Cloud.connected || Cloud.channel !== 'sms_v8_live/' + ch) {
+                    Cloud.connect(ch);
+                    setTimeout(() => this.execLogin(u, p, ch), 1000);
+                    return;
+                }
+                this.execLogin(u, p, ch);
+            },
+            execLogin(u, p, ch) {
+                const user = db.getAll('users').find(x => x.username === u && x.password === p);
+                if (user) { this.user = user; this.enter(ch); } else alert("Invalid credentials. If this is a new account, please ensure you are connected to the correct Session Channel and wait a moment for sync.");
+            },
+            guest(ch) { this.user = { role: 'public', name: 'Guest Observer', img: null }; this.enter(ch); },
+            enter(ch) {
+                if (!ch) return alert("Please enter a Session Channel name to sync with.");
+                // Only connect if not already connected to this channel
+                if (!Cloud.connected || Cloud.channel !== 'sms_v8_live/' + ch) {
+                    Cloud.connect(ch);
+                }
+                this.view = 'dashboard';
+                this.render();
+            },
+
+            renderTimer: null,
+            renderDebounced() {
+                if (this.renderTimer) clearTimeout(this.renderTimer);
+                this.renderTimer = setTimeout(() => this.render(), 500);
+            },
+
+            render() {
+                if (this.view === 'login') return this.renderLogin();
+
+                this.root.innerHTML = `
+                <div class="wrapper">
+                    <div class="sidebar">
+                        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:3rem; padding-left:0.5rem;">
+                            <div style="width:40px; height:40px; background:linear-gradient(135deg, var(--accent), #b45309); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-family:'Playfair Display'; font-size:1.5rem; box-shadow:0 0 15px rgba(251,191,36,0.3);">S</div>
+                            <div><div style="font-weight:700; color:white; font-size:1.1rem;">Senate</div><div style="font-size:0.75rem; color:var(--text-muted); letter-spacing:0.1em;">ONLINE PORTAL</div></div>
+                        </div>
+                        <nav>${['dashboard', 'senators', 'committees', 'rules'].map(k => `<div class="nav-item ${this.view === k ? 'active' : ''}" onclick="App.view='${k}';App.render()"><span style="text-transform:capitalize;">${k}</span></div>`).join('')}</nav>
+                        
+                        <div style="margin-top:auto; padding:1rem 0;">
+                            <label style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; display:block; margin-bottom:0.5rem;">Zoom Level</label>
+                            <input type="range" min="0.8" max="1.4" step="0.05" value="${App.zoom}" oninput="App.setZoom(this.value)" style="width:100%; accent-color:var(--primary);">
+                        </div>
+
+                        <div style="padding-top:1rem; border-top:var(--glass-border); display:flex; align-items:center; gap:1rem;">
+                            <img src="${this.user.img || 'https://ui-avatars.com/api/?name=' + this.user.name}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                            <div style="flex:1; overflow:hidden;"><div style="font-weight:600; font-size:0.9rem; white-space:nowrap;">${this.user.name}</div><div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">${this.user.role}</div></div>
+                            <button onclick="App.logout()" class="nav-item" style="color:var(--danger); width:100%; text-align:left; border:none; background:none;">Logout</button>
+                        </div>
+                        <div style="margin-top:auto; padding-top:1rem; font-size:0.7rem; color:var(--text-muted); text-align:center;">
+                            Proprietary System <br> (C.Zystem)
+                        </div>
+                    </div>
+                    <div class="main"><div id="top-bar-container"></div><div class="content">${this.getViewContent()}</div></div>
+                </div>`;
+                this.renderHeader();
+            },
+            renderHeader() {
+                const el = document.getElementById('top-bar-container');
+                if (el) {
+                    const status = Cloud.connected ? `Online: ${Cloud.channel.split('/')[1]}` : 'Connecting...';
+                    const cls = Cloud.connected ? 'active' : '';
+                    el.innerHTML = `<div class="top-bar"><h2 style="text-transform:capitalize; color:white;">${this.view}</h2>
+                     <div class="online-badge ${cls}"><div class="status-dot ${Cloud.connected ? 'connected' : ''}"></div><span style="color:${Cloud.connected ? 'var(--text-main)' : 'var(--text-muted)'}">${status}</span></div></div>`;
+                }
+            },
+            renderLogin() {
+                this.root.innerHTML = `
+                <div class="login-wrap"><div class="login-box animate-in">
+                    <div style="text-align:center; margin-bottom:2rem;"><h1 style="color:white; font-size:2rem;">Senate Portal</h1><p style="color:var(--text-muted);">Secure Login</p></div>
+                    <div style="margin-bottom:1.5rem;">
+                        <input id="l-ch" class="input" placeholder="Session Channel (BALZIAN SENATE)" onblur="if(this.value) Cloud.connect(this.value)" style="border-color:var(--primary); margin-bottom:0.5rem;">
+                        <div id="login-cloud-status" style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">⚠️ Reminder: Put <b>BALZIAN SENATE</b> as Channel Name</div>
+                    </div>
+                    <input id="l-u" class="input" placeholder="Username" style="margin-bottom:1rem;">
+                    <input id="l-p" type="password" class="input" placeholder="Password" style="margin-bottom:2rem;">
+                    <button onclick="App.login(val('l-u'), val('l-p'), val('l-ch'))" class="btn btn-primary" style="width:100%; margin-bottom:1rem;">Secure Access</button>
+                    <button onclick="App.guest(val('l-ch'))" class="btn btn-outline" style="width:100%;">Public Guest View</button>
+                </div></div>`;
+            },
+            getViewContent() {
+                const isAdmin = this.user.role === 'admin';
+                const isSen = this.user.role === 'senator';
+
+                if (this.view === 'dashboard') {
+                    const bills = db.getAll('bills').sort((a, b) => a.title.localeCompare(b.title));
+                    const sens = db.getAll('users').filter(u => u.role === 'senator');
+                    const coms = db.getAll('committees');
+
+                    let html = '';
+                    if (isSen || isAdmin) html = `<div style="margin-bottom:2rem; display:flex; justify-content:flex-end;"><button onclick="Modal.bill()" class="btn btn-primary">+ Draft New Bill</button></div>`;
+
+                    html += `<div class="scroll-box"><div class="grid">`;
+                    bills.forEach(b => {
+                        const votes = db.getAll('votes').filter(v => v.billId === b.id);
+                        const author = db.get('users', b.authorId)?.name || 'Unknown';
+                        const sponsor = db.get('users', b.sponsorId)?.name || 'None';
+                        const coAuthors = (b.coAuthors || []).map(id => db.get('users', id)?.name).filter(n => n).join(', ') || 'None';
+                        const coSponsors = (b.coSponsors || []).map(id => db.get('users', id)?.name).filter(n => n).join(', ') || 'None';
+                        const pComm = db.get('committees', b.primaryCommId)?.name || 'Unassigned';
+                        const sComm = db.get('committees', b.secondaryCommId)?.name || 'None';
+
+                        let cls = 'filed'; if (b.status === 'plenary') cls = 'plenary'; if (b.status === 'passed') cls = 'passed';
+
+                        html += `
+                        <div class="card animate-in">
+                            <div style="display:flex; justify-content:space-between; align-items:start;"><div class="bill-status ${cls}">${b.status}</div><div style="text-align:right;"><div style="font-size:0.8rem; color:var(--text-muted);">${new Date(b.createdAt).toLocaleDateString()}</div><div style="font-size:0.85rem; font-weight:700; color:var(--accent);">Author: ${author}</div></div></div>
+                            <h3 style="font-size:1.25rem; margin-bottom:0.75rem;">${b.title}</h3>
+                            <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">${b.desc}</p>
+                            
+                            <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; margin-bottom:1.5rem; font-size:0.85rem; display:grid; gap:0.5rem;">
+                                <div><b style="color:var(--primary);">Co-Authors:</b> ${coAuthors}</div>
+                                <div><b style="color:var(--primary);">Principal Sponsor:</b> ${sponsor}</div>
+                                <div><b style="color:var(--primary);">Co-Sponsors:</b> ${coSponsors}</div>
+                                <div style="margin-top:0.5rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:0.5rem;">
+                                    <div><b style="color:var(--accent);">Primary Committee:</b> ${pComm}</div>
+                                    <div><b style="color:var(--accent);">Secondary Committee:</b> ${sComm}</div>
+                                </div>
+                            </div>
+
+                            ${b.link ? `<a href="${b.link}" target="_blank" class="btn btn-outline" style="width:100%; justify-content:center; margin-bottom:1.5rem;">📄 Read Document</a>` : ''}
+                            
+                            ${isSen && b.status === 'plenary' && !votes.find(v => v.userId === this.user.id) ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;"><button onclick="db.vote(${b.id}, ${this.user.id}, 'yes')" class="btn btn-success">YES</button><button onclick="db.vote(${b.id}, ${this.user.id}, 'no')" class="btn btn-danger">NO</button></div>` :
+                                `<div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; display:flex; justify-content:space-between; font-size:0.8rem;"><span>YES: ${votes.filter(v => v.type === 'yes').length}</span><span>NO: ${votes.filter(v => v.type === 'no').length}</span></div>`}
+
+                            ${isAdmin ? `<div style="margin-top:1.5rem; padding-top:1rem; border-top:var(--glass-border); display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                <select onchange="db.update('bills', ${b.id}, {status:this.value})" class="select" style="width:auto; padding:0.4rem; font-size:0.85rem;">${['filed', 'committee', 'plenary', 'passed', 'rejected'].map(o => `<option value="${o}" ${b.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
+                                <button onclick="Modal.bill(${b.id})" class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem 0.8rem;">Edit</button>
+                                <button onclick="if(confirm('Delete?')) db.delete('bills', ${b.id})" class="btn btn-danger" style="font-size:0.8rem; padding:0.4rem 0.8rem;">Del</button>
+                            </div>` : ''}
+                        </div>`;
+                    });
+                    return html + `</div></div>`;
+                }
+
+                if (this.view === 'senators') {
+                    let html = '';
+                    if (isAdmin) html = `<div style="margin-bottom:2rem; text-align:right;"><button onclick="Modal.user()" class="btn btn-primary">+ Add Senator</button></div>`;
+
+                    html += `<div class="scroll-box"><div class="grid">`;
+                    db.getAll('users').filter(u => u.role === 'senator')
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .forEach(s => {
+                            html += `
+                        <div class="card senator-card animate-in">
+                            <div class="senator-img-wrap"><img src="${s.img}" class="senator-img"><div class="party-badge">${s.party}</div></div>
+                            <h3>${s.name}</h3>
+                            ${s.pos ? `<div class="role-pill">${s.pos}</div>` : ''}
+                             <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem;">${s.bloc}</div>
+                             <div style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.5rem;">${s.email}</div>
+                             <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                                <button onclick="Modal.senatorProfile(${s.id})" class="btn btn-primary" style="font-size:0.8rem; padding:0.5rem 0.8rem; width:100%; margin-bottom:0.5rem;">View Profile & Bio</button>
+                                ${isAdmin ? `
+                                <button onclick='Modal.user(${s.id})' class="btn btn-outline" style="font-size:0.8rem; padding:0.5rem 0.8rem;">Edit Profile</button>
+                                <button onclick="if(confirm('Delete account for ${s.name}?')) { db.delete('users', ${s.id}); App.render(); }" class="btn btn-danger" style="font-size:0.8rem; padding:0.5rem 0.8rem;">Delete</button>
+                                ` : ''}
+                             </div>
+                        </div>`;
+                        });
+                    return html + `</div></div>`;
+                }
+
+                if (this.view === 'committees') {
+                    let html = '';
+                    if (isAdmin) html = `<div style="margin-bottom:2rem; text-align:right;"><button onclick="Modal.committee()" class="btn btn-primary">+ New Committee</button></div>`;
+
+                    html += `<div class="scroll-box"><div class="grid">`;
+                    db.getAll('committees').sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+                        const chair = db.get('users', c.chairId)?.name || 'Vacant';
+                        const vice = db.get('users', c.viceId)?.name || 'Vacant';
+                        const mems = c.members.map(mid => db.get('users', mid)?.name).join(', ');
+                        const billCount = db.getAll('bills').filter(b => b.primaryCommId === c.id || b.secondaryCommId === c.id).length;
+                        html += `
+                        <div class="card animate-in">
+                            <div style="display:flex; justify-content:space-between; align-items:start;">
+                                <h3 style="color:var(--accent); margin-bottom:0.5rem;">${c.name}</h3>
+                                <div class="role-pill" style="background:var(--primary); color:white;">${billCount} Bills Handled</div>
+                            </div>
+                            <p style="color:var(--text-muted); margin-bottom:1.5rem; font-size:0.95rem;">${c.desc}</p>
+                            <div style="background:rgba(255,255,255,0.03); padding:1rem; border-radius:8px; margin-bottom:1rem;">
+                                <div style="font-size:0.85rem; margin-bottom:0.5rem;"><b style="color:var(--primary);">CHAIR:</b> ${chair}</div>
+                                <div style="font-size:0.85rem;"><b style="color:var(--text-muted);">VICE:</b> ${vice}</div>
+                            </div>
+                            <div style="font-size:0.85rem; color:var(--text-muted);"><b>MEMBERS:</b> ${mems}</div>
+                            ${isAdmin ? `<div style="margin-top:1.5rem; border-top:var(--glass-border); padding-top:1rem; display:flex; gap:0.5rem;">
+                                <button onclick='Modal.committee(${c.id})' class="btn btn-outline" style="font-size:0.8rem;">Edit</button>
+                                <button onclick="if(confirm('Disband?')) db.delete('committees', ${c.id})" class="btn btn-danger" style="font-size:0.8rem;">Disband</button>
+                            </div>` : ''}
+                        </div>`;
+                    });
+                    return html + `</div></div>`;
+                }
+                if (this.view === 'rules') return isAdmin ? `<div class="scroll-box"><div class="card"><textarea id="r-txt" class="input" style="min-height:500px; font-family:monospace;">${db.data.rules}</textarea><button onclick="db.data.rules=val('r-txt');db.save()" class="btn btn-primary" style="margin-top:1rem;">Save Rules</button></div></div>` : `<div class="scroll-box"><div class="card" style="white-space:pre-wrap; line-height:1.8;">${db.data.rules}</div></div>`;
+            }
+        };
+
+        const Modal = {
+            el: document.getElementById('modal-layer'),
+            show(html) { this.el.innerHTML = `<div class="modal-content">${html}</div>`; this.el.classList.add('open'); },
+            close() { this.el.classList.remove('open'); },
+            user(id) {
+                const u = id ? db.get('users', id) : { name: '', party: '', email: '', img: '', username: '', password: '', bloc: '', pos: '', bio: '' };
+                this.show(`<h3>${id ? 'Edit' : 'Add'} Senator</h3>
+                <div style="display:grid; gap:1rem; margin-top:1rem;">
+                    <div style="text-align:center;">
+                        <img id="m-preview" src="${u.img || 'https://ui-avatars.com/api/?name=' + (u.name || 'S')}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:3px solid var(--accent); margin-bottom:1rem;">
+                        <div style="display:flex; gap:0.5rem; justify-content:center;">
+                            <button onclick="document.getElementById('m-file').click()" class="btn btn-outline" style="font-size:0.8rem;">Upload & Cut Photo</button>
+                            <input type="file" id="m-file" style="display:none" accept="image/*" onchange="Modal.handleImg(this)">
+                        </div>
+                    </div>
+                    
+                    <div id="m-cropper-wrap" class="cropper-container-wrap">
+                        <img id="m-crop-img" style="max-width:100%;">
+                    </div>
+                    <div id="m-crop-actions" style="display:none; gap:0.5rem; justify-content:center; margin-bottom:1rem;">
+                        <button onclick="Modal.applyCrop()" class="btn btn-success" style="font-size:0.8rem;">Apply Cut</button>
+                        <button onclick="Modal.cancelCrop()" class="btn btn-danger" style="font-size:0.8rem;">Cancel</button>
+                    </div>
+
+                    <input id="m-name" class="input" placeholder="Full Name" value="${u.name}">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;"><input id="m-party" class="input" placeholder="Party" value="${u.party}"><input id="m-bloc" class="input" placeholder="Bloc" value="${u.bloc}"></div>
+                    <input id="m-pos" class="input" placeholder="Position" value="${u.pos}">
+                    <input id="m-email" class="input" placeholder="Email" value="${u.email}">
+                    <textarea id="m-bio" class="input" rows="4" placeholder="Biography">${u.bio || ''}</textarea>
+                    <input id="m-img" type="hidden" value="${u.img}">
+                    
+                    <div style="background:rgba(255,255,255,0.05); padding:1rem; border-radius:8px;">
+                        <input id="m-user" class="input" placeholder="Username" value="${u.username}" style="margin-bottom:0.5rem;">
+                        <input id="m-pass" class="input" placeholder="${id ? 'New Password (Optional)' : 'Password'}">
+                    </div>
+                    <button onclick="Modal.saveUser(${id})" class="btn btn-primary">Save Profile</button><button onclick="Modal.close()" class="btn btn-outline">Cancel</button>
+                </div>`);
+            },
+            cropper: null,
+            handleImg(input) {
+                if (input.files && input.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = document.getElementById('m-crop-img');
+                        img.src = e.target.result;
+                        document.getElementById('m-cropper-wrap').style.display = 'block';
+                        document.getElementById('m-crop-actions').style.display = 'flex';
+
+                        if (this.cropper) this.cropper.destroy();
+                        this.cropper = new Cropper(img, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 1,
+                            restore: false,
+                            guides: true,
+                            center: true,
+                            highlight: false,
+                            cropBoxMovable: true,
+                            cropBoxResizable: true,
+                            toggleDragModeOnDblclick: false,
+                        });
+                    };
+                    reader.readAsDataURL(input.files[0]);
+                }
+            },
+            applyCrop() {
+                if (!this.cropper) return;
+                const canvas = this.cropper.getCroppedCanvas({ width: 400, height: 400 });
+                const base64 = canvas.toDataURL('image/jpeg', 0.8);
+                document.getElementById('m-preview').src = base64;
+                document.getElementById('m-img').value = base64;
+                this.cancelCrop();
+            },
+            cancelCrop() {
+                if (this.cropper) this.cropper.destroy();
+                this.cropper = null;
+                document.getElementById('m-cropper-wrap').style.display = 'none';
+                document.getElementById('m-crop-actions').style.display = 'none';
+                document.getElementById('m-file').value = '';
+            },
+            saveUser(id) {
+                const p = val('m-pass');
+                const u = { name: val('m-name'), party: val('m-party'), bloc: val('m-bloc'), pos: val('m-pos'), email: val('m-email'), bio: val('m-bio'), img: val('m-img'), username: val('m-user'), role: 'senator' };
+                if (id) { u.password = p || db.get('users', id).password; db.update('users', id, u); } else { if (!p) return alert("Password required"); u.password = p; db.add('users', u); }
+                this.close(); App.render();
+            },
+            senatorProfile(id) {
+                const s = db.get('users', id);
+                const filed = db.getAll('bills').filter(b => b.authorId === id || (b.coAuthors || []).includes(id));
+                const passed = filed.filter(b => b.status === 'passed');
+
+                this.show(`
+                <div style="text-align:center;">
+                    <img src="${s.img}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:4px solid var(--accent); margin-bottom:1rem;">
+                    <h2>${s.name}</h2>
+                    <div class="role-pill">${s.pos || 'Senator'}</div>
+                    <div style="margin:0.5rem 0; color:var(--text-muted);">${s.party} | ${s.bloc}</div>
+                </div>
+                
+                <div class="scroll-box" style="max-height:60vh; margin-top:1.5rem; padding-right:0.5rem;">
+                    <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">BIOGRAPHY</h4>
+                    <p style="white-space:pre-wrap; line-height:1.6; margin-bottom:1.5rem; font-size:0.95rem;">${s.bio || 'No biography available.'}</p>
+                    
+                    <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">BILLS SUMMARY</h4>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+                        <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:700; color:var(--accent);">${filed.length}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">FILED/CO-AUTHORED</div>
+                        </div>
+                        <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.5rem; font-weight:700; color:var(--success);">${passed.length}</div>
+                            <div style="font-size:0.75rem; color:var(--text-muted);">BILLS PASSED</div>
+                        </div>
+                    </div>
+                    
+                    <h4 style="color:var(--primary); margin-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.3rem;">RECENT BILLS</h4>
+                    <div style="display:grid; gap:0.5rem;">
+                        ${filed.slice(0, 5).map(b => `<div style="font-size:0.85rem; padding:0.5rem; background:rgba(255,255,255,0.03); border-radius:4px;">${b.title} <span class="bill-status ${b.status}" style="font-size:0.6rem; padding:0.1rem 0.3rem;">${b.status}</span></div>`).join('') || '<div style="font-size:0.85rem; color:var(--text-muted);">No bills found.</div>'}
+                    </div>
+                </div>
+                
+                <button onclick="Modal.close()" class="btn btn-primary" style="width:100%; margin-top:1.5rem;">Close Profile</button>
+                `);
+            },
+            committee(id) {
+                const c = id ? db.get('committees', id) : { name: '', desc: '', members: [], chairId: '', viceId: '' };
+                const sens = db.getAll('users').filter(u => u.role === 'senator');
+                const opts = sens.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                const checks = sens.map(s => `<label style="display:flex; gap:0.5rem; padding:0.5rem; background:rgba(0,0,0,0.2); border-radius:6px;"><input type="checkbox" class="mem-check" value="${s.id}" ${c.members.includes(s.id) ? 'checked' : ''}> ${s.name}</label>`).join('');
+                this.show(`<h3>${id ? 'Edit' : 'Create'}</h3><div style="display:grid; gap:1rem; margin-top:1rem;">
+                    <input id="c-name" class="input" placeholder="Name" value="${c.name}"><input id="c-desc" class="input" placeholder="Desc" value="${c.desc}">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;"><div><label>Chair</label><select id="c-chair" class="select"><option value="">--</option>${opts}</select></div><div><label>Vice</label><select id="c-vice" class="select"><option value="">--</option>${opts}</select></div></div>
+                    <div class="scroll-box" style="max-height:200px; padding-right:0.5rem; display:grid; gap:0.5rem;">${checks}</div>
+                    <button onclick="Modal.saveComm(${id})" class="btn btn-primary">Save</button><button onclick="Modal.close()" class="btn btn-outline">Cancel</button>
+                    </div>`);
+                setTimeout(() => { if (c.chairId) document.getElementById('c-chair').value = c.chairId; if (c.viceId) document.getElementById('c-vice').value = c.viceId; }, 10);
+            },
+            saveComm(id) {
+                const d = { name: val('c-name'), desc: val('c-desc'), chairId: val('c-chair') ? parseInt(val('c-chair')) : null, viceId: val('c-vice') ? parseInt(val('c-vice')) : null, members: Array.from(document.querySelectorAll('.mem-check:checked')).map(x => parseInt(x.value)) };
+                if (id) db.update('committees', id, d); else db.add('committees', d); this.close(); App.render();
+            },
+            bill(id) {
+                const b = id ? db.get('bills', id) : { title: '', desc: '', link: '', coAuthors: [], sponsorId: '', coSponsors: [], primaryCommId: '', secondaryCommId: '' };
+                const sens = db.getAll('users').filter(u => u.role === 'senator');
+                const coms = db.getAll('committees');
+                const senOpts = sens.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                const comOpts = coms.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+                const coAuthorChecks = sens.map(s => `<label style="display:flex; gap:0.5rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-size:0.8rem;"><input type="checkbox" class="co-author-check" value="${s.id}" ${(b.coAuthors || []).includes(s.id) ? 'checked' : ''}> ${s.name}</label>`).join('');
+                const coSponsorChecks = sens.map(s => `<label style="display:flex; gap:0.5rem; padding:0.4rem; background:rgba(0,0,0,0.2); border-radius:4px; font-size:0.8rem;"><input type="checkbox" class="co-sponsor-check" value="${s.id}" ${(b.coSponsors || []).includes(s.id) ? 'checked' : ''}> ${s.name}</label>`).join('');
+
+                this.show(`<h3>${id ? 'Edit' : 'Draft'} Bill</h3>
+                <div class="scroll-box" style="max-height:70vh; padding-right:0.5rem; display:grid; gap:1rem; margin-top:1rem;">
+                    <div><label>Title</label><input id="b-t" class="input" placeholder="Title" value="${b.title}"></div>
+                    <div><label>Description</label><textarea id="b-d" class="input" rows="4" placeholder="Desc">${b.desc}</textarea></div>
+                    <div><label>Document Link</label><input id="b-l" class="input" placeholder="Link" value="${b.link || ''}"></div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div><label>Principal Author</label><select id="b-author" class="select"><option value="">--</option>${senOpts}</select></div>
+                        <div><label>Principal Sponsor</label><select id="b-sponsor" class="select"><option value="">--</option>${senOpts}</select></div>
+                    </div>
+
+                    <div><label>Co-Authors</label><div style="max-height:120px; overflow-y:auto; display:grid; gap:0.4rem; padding:0.5rem; background:rgba(255,255,255,0.05); border-radius:8px;">${coAuthorChecks}</div></div>
+                    <div><label>Co-Sponsors</label><div style="max-height:120px; overflow-y:auto; display:grid; gap:0.4rem; padding:0.5rem; background:rgba(255,255,255,0.05); border-radius:8px;">${coSponsorChecks}</div></div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div><label>Primary Committee</label><select id="b-pcomm" class="select"><option value="">--</option>${comOpts}</select></div>
+                        <div><label>Secondary Committee</label><select id="b-scomm" class="select"><option value="">--</option>${comOpts}</select></div>
+                    </div>
+
+                    <div style="display:flex; gap:1rem; margin-top:1rem;">
+                        <button onclick="Modal.saveBill(${id})" class="btn btn-primary" style="flex:1;">Save Bill</button>
+                        <button onclick="Modal.close()" class="btn btn-outline">Cancel</button>
+                    </div>
+                </div>`);
+
+                setTimeout(() => {
+                    if (b.authorId) document.getElementById('b-author').value = b.authorId;
+                    if (b.sponsorId) document.getElementById('b-sponsor').value = b.sponsorId;
+                    if (b.primaryCommId) document.getElementById('b-pcomm').value = b.primaryCommId;
+                    if (b.secondaryCommId) document.getElementById('b-scomm').value = b.secondaryCommId;
+                }, 10);
+            },
+            saveBill(id) {
+                const d = {
+                    title: val('b-t'),
+                    desc: val('b-d'),
+                    link: val('b-l'),
+                    authorId: parseInt(val('b-author')) || App.user.id,
+                    sponsorId: parseInt(val('b-sponsor')) || null,
+                    coAuthors: Array.from(document.querySelectorAll('.co-author-check:checked')).map(x => parseInt(x.value)),
+                    coSponsors: Array.from(document.querySelectorAll('.co-sponsor-check:checked')).map(x => parseInt(x.value)),
+                    primaryCommId: parseInt(val('b-pcomm')) || null,
+                    secondaryCommId: parseInt(val('b-scomm')) || null,
+                    createdAt: id ? db.get('bills', id).createdAt : new Date().toISOString()
+                };
+                if (id) db.update('bills', id, d); else db.add('bills', d);
+                this.close(); App.render();
+            }
+        };
+        const val = id => document.getElementById(id).value;
+        App.init();
+    </script>
+</body>
+
+</html>
