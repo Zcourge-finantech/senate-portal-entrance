@@ -662,11 +662,11 @@
                 return true;
             }
             getAll(k) { return this.data[k]; }
-            get(k, id) { return this.data[k].find(x => x.id === id); }
+            get(k, id) { return this.data[k].find(x => x.id == id); }
             add(k, item) { this.data[k].push({ ...item, id: Date.now() }); this.save(); }
-            update(k, id, up) { const idx = this.data[k].findIndex(x => x.id === id); if (idx !== -1) { this.data[k][idx] = { ...this.data[k][idx], ...up }; this.save(); } }
-            delete(k, id) { this.data[k] = this.data[k].filter(x => x.id !== id); this.save(); }
-            vote(bid, uid, type) { this.data.votes = this.data.votes.filter(v => !(v.billId === bid && v.userId === uid)); this.data.votes.push({ billId: bid, userId: uid, type }); this.save(); }
+            update(k, id, up) { const idx = this.data[k].findIndex(x => x.id == id); if (idx !== -1) { this.data[k][idx] = { ...this.data[k][idx], ...up }; this.save(); } }
+            delete(k, id) { this.data[k] = this.data[k].filter(x => x.id != id); this.save(); }
+            vote(bid, uid, type) { this.data.votes = this.data.votes.filter(v => !(v.billId == bid && v.userId == uid)); this.data.votes.push({ billId: bid, userId: uid, type }); this.save(); }
         }
         const db = new Database();
 
@@ -784,7 +784,7 @@
                 const titleDisplay = isLaw ? `Republic Act No. ${b.raNumber || '---'}` : b.title;
 
                 return `
-                <div class="card animate-in">
+                <div class="card bill-card animate-in" style="position:relative;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div class="bill-status ${cls}">${isLaw ? 'REPUBLIC ACT' : b.status}</div>
                         <div style="text-align:right;">
@@ -813,10 +813,10 @@
                     ${isSen && b.status === 'plenary' && !votes.find(v => v.userId === this.user.id) ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;"><button onclick="db.vote(${b.id}, ${this.user.id}, 'yes')" class="btn btn-success">YES</button><button onclick="db.vote(${b.id}, ${this.user.id}, 'no')" class="btn btn-danger">NO</button></div>` :
                         `<div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; display:flex; justify-content:space-between; font-size:0.8rem;"><span>YES: ${votes.filter(v => v.type === 'yes').length}</span><span>NO: ${votes.filter(v => v.type === 'no').length}</span></div>`}
 
-                    ${isAdmin ? `<div style="margin-top:1.5rem; padding-top:1rem; border-top:var(--glass-border); display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <select onchange="db.update('bills', ${b.id}, {status:this.value})" class="select" style="width:auto; padding:0.4rem; font-size:0.85rem;">${['filed', 'committee', 'plenary', 'passed', 'law', 'rejected'].map(o => `<option value="${o}" ${b.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
-                        <button onclick="Modal.bill(${b.id})" class="btn-outline" style="padding:0.4rem 0.8rem; border-radius:8px;">✎ Edit</button>
-                        <button onclick="if(confirm('Delete?')) db.delete('bills', ${b.id})" class="btn-outline" style="padding:0.4rem 0.8rem; border-radius:8px; color:var(--danger);">✕</button>
+                    ${isAdmin ? `<div style="margin-top:1.5rem; padding-top:1rem; border-top:var(--glass-border); display:flex; gap:0.5rem; flex-wrap:wrap; position:relative; z-index:100;">
+                        <select onchange="db.update('bills', ${b.id}, {status:this.value}); App.renderDebounced();" class="select" style="width:auto; padding:0.4rem; font-size:0.85rem; cursor:pointer;">${['filed', 'committee', 'plenary', 'passed', 'law', 'rejected'].map(o => `<option value="${o}" ${b.status === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
+                        <button onclick="Modal.bill(${b.id})" class="btn btn-outline" style="padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer !important; position:relative; z-index:110;">✎ Edit</button>
+                        <button onclick="if(confirm('Delete?')) { db.delete('bills', ${b.id}); App.renderDebounced(); }" class="btn btn-danger" style="padding:0.4rem 0.8rem; border-radius:8px; cursor:pointer !important; position:relative; z-index:110;">✕</button>
                     </div>` : ''}
                 </div>`;
             },
@@ -852,7 +852,7 @@
                 }
 
                 if (this.view === 'republic_acts') {
-                    const laws = db.getAll('bills').filter(b => b.status === 'law').sort((a, b) => b.raNumber - a.raNumber);
+                    const laws = db.getAll('bills').filter(b => b.status === 'law').sort((a, b) => (parseInt(a.raNumber) || 0) - (parseInt(b.raNumber) || 0));
                     let html = `<div><h1 style="color:var(--accent);">Republic Acts</h1><p style="color:var(--text-muted); margin-bottom:2rem;">Permanent record of enacted laws and legislation.</p></div>`;
                     html += `<div class="scroll-box"><div class="grid">`;
                     laws.forEach(b => { html += this.renderBillCard(b); });
@@ -1011,7 +1011,7 @@
                 const s = db.get('users', id);
                 const bills = db.getAll('bills');
                 const filed = bills.filter(b => b.authorId === id || (b.coAuthors || []).includes(id));
-                const passed = filed.filter(b => b.status === 'passed');
+                const passed = filed.filter(b => b.status === 'passed' || b.status === 'law');
                 const laws = filed.filter(b => b.status === 'law');
 
                 this.show(`
@@ -1032,11 +1032,11 @@
                             <div style="font-size:1.25rem; font-weight:700; color:var(--accent);">${filed.length}</div>
                             <div style="font-size:0.65rem; color:var(--text-muted);">FILED</div>
                         </div>
-                        <div style="background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:8px; text-align:center;">
-                            <div style="font-size:1.25rem; font-weight:700; color:var(--success);">${passed.length}</div>
-                            <div style="font-size:0.65rem; color:var(--text-muted);">PASSED</div>
+                        <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); padding:0.75rem; border-radius:8px; text-align:center;">
+                            <div style="font-size:1.25rem; font-weight:700; color:var(--success); border-bottom:2px solid var(--success); display:inline-block; margin-bottom:2px;">${passed.length}</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted);">PASSED (Total)</div>
                         </div>
-                        <div style="background:linear-gradient(135deg, #b45309, #d97706); padding:0.75rem; border-radius:8px; text-align:center;">
+                        <div style="background:linear-gradient(135deg, #b45309, #d97706); padding:0.75rem; border-radius:8px; text-align:center; box-shadow:0 4px 12px rgba(217,119,6,0.2);">
                             <div style="font-size:1.25rem; font-weight:700; color:white;">${laws.length}</div>
                             <div style="font-size:0.65rem; color:rgba(255,255,255,0.8);">ENACTED</div>
                         </div>
@@ -1087,6 +1087,7 @@
                         <div>
                             <label>Status</label>
                             <select id="b-status" class="select" onchange="document.getElementById('ra-fields').style.display = this.value === 'law' ? 'grid' : 'none'">
+                                <option value="filed" ${b.status === 'filed' ? 'selected' : ''}>Filed (New)</option>
                                 <option value="committee" ${b.status === 'committee' ? 'selected' : ''}>Committee Hearing</option>
                                 <option value="plenary" ${b.status === 'plenary' ? 'selected' : ''}>Plenary Session</option>
                                 <option value="passed" ${b.status === 'passed' ? 'selected' : ''}>Passed 3rd Reading</option>
