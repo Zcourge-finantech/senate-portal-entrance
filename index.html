@@ -609,7 +609,8 @@
             bills: [{ id: 101, title: 'S.B. 101: Renewable Energy Act', desc: 'Mandates 50% renewable energy transition by 2030.', authorId: 2, status: 'committee', stage: 'Committee Hearing', link: '', createdAt: new Date().toISOString() }],
             committees: [{ id: 1, name: 'Rules & Privileges', members: [2], chairId: 2, viceId: null, desc: 'Jurisdiction over senate rules.' }],
             rules: "SECTION 1. SESSIONS.\nThe Senate shall meet every Monday at 3:00 PM...",
-            votes: []
+            votes: [],
+            resolutions: []
         };
 
         class Database {
@@ -633,6 +634,7 @@
                 // Ensure robust structure
                 if (!this.data.users) this.data.users = SEED.users;
                 if (!this.data.committees) this.data.committees = SEED.committees;
+                if (!this.data.resolutions) this.data.resolutions = [];
 
                 // v7/v8 Migrations (ensure fields exist)
                 this.data.users.forEach(u => {
@@ -708,6 +710,11 @@
                 this.view = 'dashboard';
                 this.render();
             },
+            logout() {
+                this.user = null;
+                this.view = 'login';
+                this.render();
+            },
 
             renderTimer: null,
             renderDebounced() {
@@ -725,7 +732,7 @@
                             <div style="width:40px; height:40px; background:linear-gradient(135deg, var(--accent), #b45309); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-family:'Playfair Display'; font-size:1.5rem; box-shadow:0 0 15px rgba(251,191,36,0.3);">S</div>
                             <div><div style="font-weight:700; color:white; font-size:1.1rem;">Senate</div><div style="font-size:0.75rem; color:var(--text-muted); letter-spacing:0.1em;">ONLINE PORTAL</div></div>
                         </div>
-                        <nav>${['dashboard', 'republic_acts', 'senators', 'committees', 'rules'].map(k => `
+                        <nav>${['dashboard', 'republic_acts', 'senators', 'committees', 'resolutions', 'rules'].map(k => `
                             <div class="nav-item ${this.view === k ? 'active' : ''}" onclick="App.view='${k}';App.render()">
                                 <span style="text-transform:capitalize;">${k.replace('_', ' ')}</span>
                             </div>`).join('')}
@@ -820,6 +827,33 @@
                     </div>` : ''}
                 </div>`;
             },
+            renderResolutionCard(r) {
+                const isAdmin = this.user.role === 'admin';
+                const author = db.get('users', r.authorId)?.name || 'Unknown';
+
+                return `
+                <div class="card resolution-card animate-in" style="position:relative; border-left:4px solid var(--primary);">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:1rem;">
+                        <div class="bill-status" style="color:var(--primary); border-color:var(--primary); background:rgba(59,130,246,0.1);">RESOLUTION NO. ${r.number || '---'}</div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.8rem; color:var(--text-muted);">${new Date(r.createdAt).toLocaleDateString()}</div>
+                            <div style="font-size:0.85rem; font-weight:700; color:var(--accent);">Author: ${author}</div>
+                        </div>
+                    </div>
+                    <h3 style="font-size:1.2rem; margin-bottom:0.75rem; color:white;">${r.title}</h3>
+                    <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${r.desc}</p>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:auto;">
+                         <span class="role-pill" style="margin:0; font-size:0.7rem;">STATUS: ${r.status || 'Pending'}</span>
+                         ${r.link ? `<a href="${r.link}" target="_blank" class="btn btn-outline" style="padding:0.3rem 0.6rem; font-size:0.75rem;">📄 View</a>` : ''}
+                    </div>
+
+                    ${isAdmin ? `<div style="margin-top:1.2rem; padding-top:1rem; border-top:var(--glass-border); display:flex; gap:0.5rem; justify-content:flex-end; position:relative; z-index:100;">
+                        <button onclick="Modal.resolution(${r.id})" class="btn btn-outline" style="padding:0.4rem 0.6rem; font-size:0.8rem; border-radius:6px; cursor:pointer !important; position:relative; z-index:110;">✎ Edit</button>
+                        <button onclick="if(confirm('Delete?')) { db.delete('resolutions', ${r.id}); App.renderDebounced(); }" class="btn btn-danger" style="padding:0.4rem 0.6rem; font-size:0.8rem; border-radius:6px; cursor:pointer !important; position:relative; z-index:110;">✕</button>
+                    </div>` : ''}
+                </div>`;
+            },
             renderLogin() {
                 this.root.innerHTML = `
                 <div class="login-wrap"><div class="login-box animate-in">
@@ -864,8 +898,16 @@
                     if (isAdmin) html = `<div style="margin-bottom:2rem; text-align:right;"><button onclick="Modal.user()" class="btn btn-primary">+ Add Senator</button></div>`;
 
                     html += `<div class="scroll-box"><div class="grid">`;
+                    const posRank = {
+                        'Senate President': 1,
+                        'Senate President Pro Tempore': 2,
+                        'Majority Leader': 3,
+                        'Deputy Majority Leader': 4,
+                        'Minority Leader': 5,
+                        'Deputy Minority Leader': 6
+                    };
                     db.getAll('users').filter(u => u.role === 'senator')
-                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .sort((a, b) => (posRank[a.pos] || 99) - (posRank[b.pos] || 99) || a.name.localeCompare(b.name))
                         .forEach(s => {
                             html += `
                         <div class="card senator-card animate-in">
@@ -914,6 +956,16 @@
                             </div>` : ''}
                         </div>`;
                     });
+                    return html + `</div></div>`;
+                }
+
+                if (this.view === 'resolutions') {
+                    const res = db.getAll('resolutions').sort((a, b) => (parseInt(a.number) || 0) - (parseInt(b.number) || 0));
+                    let html = `<div><h1 style="color:var(--primary);">Senate Resolutions</h1><p style="color:var(--text-muted); margin-bottom:2rem;">Browse and manage legislative resolutions.</p></div>`;
+                    if (isAdmin) html += `<div style="margin-bottom:2rem; text-align:right;"><button onclick="Modal.resolution()" class="btn btn-primary">+ Draft New Resolution</button></div>`;
+
+                    html += `<div class="scroll-box"><div class="grid">`;
+                    res.forEach(r => { html += this.renderResolutionCard(r); });
                     return html + `</div></div>`;
                 }
                 if (this.view === 'rules') return isAdmin ? `<div class="scroll-box"><div class="card"><textarea id="r-txt" class="input" style="min-height:500px; font-family:monospace;">${db.data.rules}</textarea><button onclick="db.data.rules=val('r-txt');db.save()" class="btn btn-primary" style="margin-top:1rem;">Save Rules</button></div></div>` : `<div class="scroll-box"><div class="card" style="white-space:pre-wrap; line-height:1.8;">${db.data.rules}</div></div>`;
@@ -1144,6 +1196,47 @@
                 if (b.status === 'law' && !b.raNumber) return alert("Republic Act Number is required for enacted laws.");
                 id ? db.update('bills', id, b) : db.add('bills', b);
                 this.close();
+            },
+            resolution(id) {
+                const r = id ? db.get('resolutions', id) : { title: '', desc: '', number: '', link: '', status: 'Pending', authorId: '', createdAt: new Date().toISOString() };
+                const sens = db.getAll('users').filter(u => u.role === 'senator');
+                const senOpts = sens.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+                this.show(`<h3>${id ? 'Edit' : 'Draft'} Resolution</h3>
+                <div class="scroll-box" style="max-height:70vh; padding-right:0.5rem; display:grid; gap:1rem; margin-top:1rem;">
+                    <div><label>Title</label><input id="r-t" class="input" placeholder="Title" value="${r.title}"></div>
+                    <div><label>Description</label><textarea id="r-d" class="input" rows="4" placeholder="Description">${r.desc}</textarea></div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div><label>Resolution No.</label><input id="r-n" class="input" placeholder="e.g. 12" value="${r.number}"></div>
+                        <div><label>Status</label><input id="r-s" class="input" placeholder="e.g. Adopted" value="${r.status}"></div>
+                    </div>
+
+                    <div><label>Document Link</label><input id="r-l" class="input" placeholder="Link" value="${r.link || ''}"></div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div><label>Author</label><select id="r-author" class="select"><option value="">--</option>${senOpts}</select></div>
+                        <div><label>Date Created</label><input id="r-date" type="datetime-local" class="input" value="${r.createdAt.substring(0, 16)}"></div>
+                    </div>
+
+                    <div style="display:flex; gap:1rem; margin-top:2rem;">
+                        <button onclick="Modal.saveResolution(${id || 'null'})" class="btn btn-primary" style="flex:1; cursor:pointer !important;">Save Resolution</button>
+                        <button onclick="Modal.close()" class="btn btn-outline" style="cursor:pointer !important;">Cancel</button>
+                    </div>
+                </div>`);
+
+                setTimeout(() => { if (r.authorId) document.getElementById('r-author').value = r.authorId; }, 10);
+            },
+            saveResolution(id) {
+                const r = {
+                    title: val('r-t'), desc: val('r-d'), number: val('r-n'),
+                    status: val('r-s'), link: val('r-l'), authorId: parseInt(val('r-author')),
+                    createdAt: new Date(val('r-date')).toISOString()
+                };
+                if (!r.title || !r.authorId || !r.number) return alert("Title, Author, and Number required.");
+                id ? db.update('resolutions', id, r) : db.add('resolutions', r);
+                this.close();
+                App.renderDebounced();
             }
         };
         const val = id => document.getElementById(id).value;
